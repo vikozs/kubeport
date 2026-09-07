@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: uploads
+spec:
+  serviceName: uploads
+  replicas: 2
+  selector:
+    matchLabels:
+      app: uploads
+  template:
+    metadata:
+      labels:
+        app: uploads
+    spec:
+      containers:
+        - name: uploads
+          image: ghcr.io/acme/uploads:2.3.0
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: shared
+              mountPath: /srv/uploads
+  volumeClaimTemplates:
+    - metadata:
+        name: shared
+      spec:
+        accessModes: [ReadWriteMany]
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 20Gi

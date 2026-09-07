@@ -1,0 +1,51 @@
+# Kubernetes API deprecations and removals, by upstream minor version.
+# Source: https://kubernetes.io/docs/reference/using-api/deprecation-guide/
+# OpenShift versions map to the bundled Kubernetes minor in each target file.
+apis:
+  - {apiVersion: extensions/v1beta1, kind: Ingress, deprecated_in: 14, removed_in: 22, replacement: networking.k8s.io/v1}
+  - {apiVersion: networking.k8s.io/v1beta1, kind: Ingress, deprecated_in: 19, removed_in: 22, replacement: networking.k8s.io/v1}
+  - {apiVersion: networking.k8s.io/v1beta1, kind: IngressClass, deprecated_in: 19, removed_in: 22, replacement: networking.k8s.io/v1}
+  - {apiVersion: extensions/v1beta1, kind: Deployment, deprecated_in: 9, removed_in: 16, replacement: apps/v1}
+  - {apiVersion: extensions/v1beta1, kind: DaemonSet, deprecated_in: 9, removed_in: 16, replacement: apps/v1}
+  - {apiVersion: extensions/v1beta1, kind: ReplicaSet, deprecated_in: 9, removed_in: 16, replacement: apps/v1}
+  - {apiVersion: extensions/v1beta1, kind: NetworkPolicy, deprecated_in: 9, removed_in: 16, replacement: networking.k8s.io/v1}
+  - {apiVersion: extensions/v1beta1, kind: PodSecurityPolicy, deprecated_in: 10, removed_in: 16, replacement: policy/v1beta1 (itself removed in 1.25)}
+  - {apiVersion: apps/v1beta1, kind: Deployment, deprecated_in: 9, removed_in: 16, replacement: apps/v1}
+  - {apiVersion: apps/v1beta2, kind: Deployment, deprecated_in: 9, removed_in: 16, replacement: apps/v1}
+  - {apiVersion: apps/v1beta1, kind: StatefulSet, deprecated_in: 9, removed_in: 16, replacement: apps/v1}
+  - {apiVersion: apps/v1beta2, kind: StatefulSet, deprecated_in: 9, removed_in: 16, replacement: apps/v1}
+  - {apiVersion: apps/v1beta2, kind: DaemonSet, deprecated_in: 9, removed_in: 16, replacement: apps/v1}
+  - {apiVersion: rbac.authorization.k8s.io/v1beta1, kind: ClusterRole, deprecated_in: 17, removed_in: 22, replacement: rbac.authorization.k8s.io/v1}
+  - {apiVersion: rbac.authorization.k8s.io/v1beta1, kind: ClusterRoleBinding, deprecated_in: 17, removed_in: 22, replacement: rbac.authorization.k8s.io/v1}
+  - {apiVersion: rbac.authorization.k8s.io/v1beta1, kind: Role, deprecated_in: 17, removed_in: 22, replacement: rbac.authorization.k8s.io/v1}
+  - {apiVersion: rbac.authorization.k8s.io/v1beta1, kind: RoleBinding, deprecated_in: 17, removed_in: 22, replacement: rbac.authorization.k8s.io/v1}
+  - {apiVersion: admissionregistration.k8s.io/v1beta1, kind: MutatingWebhookConfiguration, deprecated_in: 16, removed_in: 22, replacement: admissionregistration.k8s.io/v1}
+  - {apiVersion: admissionregistration.k8s.io/v1beta1, kind: ValidatingWebhookConfiguration, deprecated_in: 16, removed_in: 22, replacement: admissionregistration.k8s.io/v1}
+  - {apiVersion: apiextensions.k8s.io/v1beta1, kind: CustomResourceDefinition, deprecated_in: 16, removed_in: 22, replacement: apiextensions.k8s.io/v1}
+  - {apiVersion: certificates.k8s.io/v1beta1, kind: CertificateSigningRequest, deprecated_in: 19, removed_in: 22, replacement: certificates.k8s.io/v1}
+  - {apiVersion: coordination.k8s.io/v1beta1, kind: Lease, deprecated_in: 19, removed_in: 22, replacement: coordination.k8s.io/v1}
+  - {apiVersion: storage.k8s.io/v1beta1, kind: CSIDriver, deprecated_in: 19, removed_in: 22, replacement: storage.k8s.io/v1}
+  - {apiVersion: storage.k8s.io/v1beta1, kind: CSINode, deprecated_in: 17, removed_in: 22, replacement: storage.k8s.io/v1}
+  - {apiVersion: storage.k8s.io/v1beta1, kind: StorageClass, deprecated_in: 19, removed_in: 22, replacement: storage.k8s.io/v1}
+  - {apiVersion: storage.k8s.io/v1beta1, kind: VolumeAttachment, deprecated_in: 19, removed_in: 22, replacement: storage.k8s.io/v1}
+  - {apiVersion: scheduling.k8s.io/v1beta1, kind: PriorityClass, deprecated_in: 14, removed_in: 22, replacement: scheduling.k8s.io/v1}
+  - {apiVersion: batch/v1beta1, kind: CronJob, deprecated_in: 21, removed_in: 25, replacement: batch/v1}
+  - {apiVersion: discovery.k8s.io/v1beta1, kind: EndpointSlice, deprecated_in: 21, removed_in: 25, replacement: discovery.k8s.io/v1}
+  - {apiVersion: events.k8s.io/v1beta1, kind: Event, deprecated_in: 19, removed_in: 25, replacement: events.k8s.io/v1}
+  - {apiVersion: autoscaling/v2beta1, kind: HorizontalPodAutoscaler, deprecated_in: 23, removed_in: 25, replacement: autoscaling/v2}
+  - {apiVersion: policy/v1beta1, kind: PodDisruptionBudget, deprecated_in: 21, removed_in: 25, replacement: policy/v1}
+  - {apiVersion: policy/v1beta1, kind: PodSecurityPolicy, deprecated_in: 21, removed_in: 25, replacement: "Pod Security Admission (pod-security.kubernetes.io labels) or an admission controller"}
+  - {apiVersion: node.k8s.io/v1beta1, kind: RuntimeClass, deprecated_in: 20, removed_in: 25, replacement: node.k8s.io/v1}
+  - {apiVersion: autoscaling/v2beta2, kind: HorizontalPodAutoscaler, deprecated_in: 23, removed_in: 26, replacement: autoscaling/v2}
+  - {apiVersion: flowcontrol.apiserver.k8s.io/v1beta1, kind: FlowSchema, deprecated_in: 23, removed_in: 26, replacement: flowcontrol.apiserver.k8s.io/v1}
+  - {apiVersion: flowcontrol.apiserver.k8s.io/v1beta1, kind: PriorityLevelConfiguration, deprecated_in: 23, removed_in: 26, replacement: flowcontrol.apiserver.k8s.io/v1}
+  - {apiVersion: storage.k8s.io/v1beta1, kind: CSIStorageCapacity, deprecated_in: 24, removed_in: 27, replacement: storage.k8s.io/v1}
+  - {apiVersion: flowcontrol.apiserver.k8s.io/v1beta2, kind: FlowSchema, deprecated_in: 26, removed_in: 29, replacement: flowcontrol.apiserver.k8s.io/v1}
+  - {apiVersion: flowcontrol.apiserver.k8s.io/v1beta2, kind: PriorityLevelConfiguration, deprecated_in: 26, removed_in: 29, replacement: flowcontrol.apiserver.k8s.io/v1}
+  - {apiVersion: flowcontrol.apiserver.k8s.io/v1beta3, kind: FlowSchema, deprecated_in: 29, removed_in: 32, replacement: flowcontrol.apiserver.k8s.io/v1}
+  - {apiVersion: flowcontrol.apiserver.k8s.io/v1beta3, kind: PriorityLevelConfiguration, deprecated_in: 29, removed_in: 32, replacement: flowcontrol.apiserver.k8s.io/v1}
+  - {apiVersion: resource.k8s.io/v1alpha3, kind: ResourceClaim, deprecated_in: 32, removed_in: 33, replacement: resource.k8s.io/v1beta1}
+  - {apiVersion: resource.k8s.io/v1beta1, kind: ResourceClaim, deprecated_in: 33, removed_in: 35, replacement: resource.k8s.io/v1}
+  - {apiVersion: resource.k8s.io/v1beta2, kind: ResourceClaim, deprecated_in: 34, removed_in: 37, replacement: resource.k8s.io/v1}
+  # OpenShift-specific deprecations
+  - {apiVersion: apps.openshift.io/v1, kind: DeploymentConfig, deprecated_in: 27, removed_in: 0, replacement: apps/v1 Deployment (DeploymentConfig deprecated since OpenShift 4.14)}

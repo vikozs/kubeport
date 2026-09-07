@@ -1,0 +1,17 @@
+profile: gke
+display: Google GKE
+ingress:
+  default_class: gce
+  controller: gce
+  annotation_prefixes: [kubernetes.io/ingress., cloud.google.com/, networking.gke.io/]
+load_balancer: true
+storage:
+  classes: [standard, standard-rwo, premium-rwo, standard-rwx]
+  default_class: standard-rwo
+  rwx_classes: [standard-rwx]
+  mapping:
+    local-path: standard-rwo
+    gp2: standard-rwo
+    gp3: standard-rwo
+    thin-csi: standard-rwo
+api_groups: [metrics.k8s.io, networking.gke.io, cloud.google.com]

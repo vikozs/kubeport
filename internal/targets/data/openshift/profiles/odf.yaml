@@ -1,0 +1,13 @@
+profile: odf
+display: OpenShift Data Foundation
+storage:
+  classes: [ocs-storagecluster-ceph-rbd, ocs-storagecluster-cephfs, openshift-storage.noobaa.io]
+  default_class: ocs-storagecluster-ceph-rbd
+  rwx_classes: [ocs-storagecluster-cephfs]
+  mapping:
+    local-path: ocs-storagecluster-ceph-rbd
+    gp2: ocs-storagecluster-ceph-rbd
+    gp3: ocs-storagecluster-ceph-rbd
+    standard: ocs-storagecluster-ceph-rbd
+    efs-sc: ocs-storagecluster-cephfs
+    azurefile-csi: ocs-storagecluster-cephfs

@@ -1,0 +1,17 @@
+profile: aks
+display: Azure AKS
+ingress:
+  default_class: webapprouting.kubernetes.azure.com
+  controller: nginx (application routing add-on)
+  annotation_prefixes: [nginx.ingress.kubernetes.io/, service.beta.kubernetes.io/azure-]
+load_balancer: true
+storage:
+  classes: [default, managed-csi, managed-csi-premium, azurefile-csi, azurefile-csi-premium]
+  default_class: default
+  rwx_classes: [azurefile-csi, azurefile-csi-premium]
+  mapping:
+    local-path: managed-csi
+    gp2: managed-csi
+    gp3: managed-csi
+    thin-csi: managed-csi
+api_groups: [metrics.k8s.io]

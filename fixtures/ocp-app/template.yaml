@@ -1,0 +1,33 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: cache
+parameters:
+  - name: NAME
+    value: cache
+  - name: REPLICAS
+    value: "2"
+  - name: PASSWORD
+    generate: expression
+    from: "[a-zA-Z0-9]{16}"
+objects:
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: ${NAME}
+    spec:
+      replicas: ${{REPLICAS}}
+      selector:
+        matchLabels:
+          app: ${NAME}
+      template:
+        metadata:
+          labels:
+            app: ${NAME}
+        spec:
+          containers:
+            - name: redis
+              image: registry.redhat.io/rhel9/redis-7:1
+              env:
+                - name: REDIS_PASSWORD
+                  value: ${PASSWORD}

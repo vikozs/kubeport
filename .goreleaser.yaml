@@ -1,0 +1,56 @@
+version: 2
+project_name: kubeport
+before:
+  hooks:
+    - go mod tidy
+builds:
+  - main: ./cmd/kubeport
+    binary: kubeport
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ldflags: [-s -w -X main.version={{.Version}}]
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    flags: [-trimpath]
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files: [LICENSE, README.md]
+checksum:
+  name_template: checksums.txt
+sboms:
+  - artifacts: archive
+signs:
+  - cmd: cosign
+    certificate: "${artifact}.pem"
+    args: [sign-blob, "--output-certificate=${certificate}", "--output-signature=${signature}", "${artifact}", "--yes"]
+    artifacts: checksum
+    output: true
+brews:
+  - repository:
+      owner: kubeport
+      name: homebrew-tap
+    homepage: https://kubeport.kosir.info
+    description: Portability linter and translator for Kubernetes workloads (k3s, Kubernetes, OpenShift)
+    license: Apache-2.0
+    test: |
+      system "#{bin}/kubeport", "version"
+krews:
+  - name: port
+    repository:
+      owner: kubeport
+      name: krew-index
+    homepage: https://kubeport.kosir.info
+    short_description: Check and translate manifests for k3s, Kubernetes and OpenShift
+    description: |
+      kubectl port checks manifests against a target distribution and version and
+      rewrites what can be rewritten safely.
+changelog:
+  sort: asc
+  filters:
+    exclude: ["^docs:", "^test:", "^chore:"]
+release:
+  footer: |
+    Verify: `cosign verify-blob --certificate checksums.txt.pem --signature checksums.txt.sig --certificate-identity-regexp 'https://github.com/kubeport/kubeport' --certificate-oidc-issuer https://token.actions.githubusercontent.com checksums.txt`

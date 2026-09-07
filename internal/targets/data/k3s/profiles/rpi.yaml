@@ -1,0 +1,3 @@
+profile: rpi
+display: Raspberry Pi, arm64
+notes: Same defaults as k3s; arm64 images required. RWX storage not available.

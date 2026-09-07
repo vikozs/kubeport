@@ -1,0 +1,24 @@
+name: k8s
+version: "1.34"
+kubernetes: "1.34"
+display: Kubernetes 1.34
+notes: kubeadm-style cluster with no Ingress controller, no LoadBalancer implementation and no default StorageClass. Use a profile (eks, gke, aks, talos) or your own profile file for a real cluster.
+admission: psa
+psa_level: privileged
+arbitrary_uid: false
+hostpath_allowed: true
+privileged_allowed: true
+ingress:
+  default_class: ""
+  controller: ""
+  routes: false
+  annotation_prefixes: []
+load_balancer: false
+storage:
+  classes: []
+  default_class: ""
+  rwx_classes: []
+  mapping: {}
+api_groups: [metrics.k8s.io]
+quotas_enforced: false
+network_policy_default_deny: false

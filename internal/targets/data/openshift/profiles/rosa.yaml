@@ -1,0 +1,12 @@
+profile: rosa
+display: ROSA on AWS
+storage:
+  classes: [gp3-csi, gp2-csi, efs-sc]
+  default_class: gp3-csi
+  rwx_classes: [efs-sc]
+  mapping:
+    local-path: gp3-csi
+    gp2: gp2-csi
+    gp3: gp3-csi
+    standard: gp3-csi
+    thin-csi: gp3-csi

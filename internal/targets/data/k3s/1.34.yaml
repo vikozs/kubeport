@@ -1,0 +1,24 @@
+name: k3s
+version: "1.34"
+kubernetes: "1.34"
+display: k3s 1.34
+notes: Defaults as shipped by k3s. Traefik, ServiceLB (Klipper) and local-path-provisioner enabled.
+admission: psa
+psa_level: privileged
+arbitrary_uid: false
+hostpath_allowed: true
+privileged_allowed: true
+ingress:
+  default_class: traefik
+  controller: traefik
+  routes: false
+  annotation_prefixes: [traefik.ingress.kubernetes.io/, traefik.io/]
+load_balancer: true
+storage:
+  classes: [local-path]
+  default_class: local-path
+  rwx_classes: []
+  mapping: {}
+api_groups: [helm.cattle.io, k3s.cattle.io, traefik.io, traefik.containo.us, metrics.k8s.io]
+quotas_enforced: false
+network_policy_default_deny: false

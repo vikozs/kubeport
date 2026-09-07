@@ -1,0 +1,74 @@
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  name: web
+  labels:
+    app: web
+spec:
+  replicas: 1
+  selector:
+    app: web
+  strategy:
+    type: Rolling
+    rollingParams:
+      maxSurge: 25%
+      maxUnavailable: 0
+  triggers:
+    - type: ConfigChange
+    - type: ImageChange
+      imageChangeParams:
+        automatic: true
+        containerNames: [web]
+        from:
+          kind: ImageStreamTag
+          name: web:latest
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: image-registry.openshift-image-registry.svc:5000/shop/web:latest
+          ports:
+            - containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: web-tls
+spec:
+  selector:
+    app: web
+  ports:
+    - name: https
+      port: 8443
+      targetPort: 8443
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: web
+  annotations:
+    haproxy.router.openshift.io/timeout: 60s
+spec:
+  host: web.apps.example.com
+  to:
+    kind: Service
+    name: web
+  port:
+    targetPort: https
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: web

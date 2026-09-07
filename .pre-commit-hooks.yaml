@@ -1,0 +1,7 @@
+- id: kubeport
+  name: kubeport portability check
+  description: Check manifests for portability to the target in .kubeport.yaml or KUBEPORT_TO
+  entry: sh -c 'kubeport check --to "${KUBEPORT_TO:-openshift:4.19}" "$@"' --
+  language: system
+  files: \.ya?ml$
+  pass_filenames: true

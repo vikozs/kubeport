@@ -1,0 +1,45 @@
+name: openshift
+version: "4.17"
+kubernetes: "1.30"
+display: OpenShift 4.17
+notes: Default project with restricted-v2 SCC, arbitrary UIDs, OpenShift Router, Routes and Ingress. StorageClasses depend on the install platform; use a profile (vsphere, odf, rosa, aro) or your own profile file.
+admission: scc
+default_scc: restricted-v2
+arbitrary_uid: true
+hostpath_allowed: false
+privileged_allowed: false
+ingress:
+  default_class: openshift-default
+  controller: openshift-router (HAProxy)
+  routes: true
+  annotation_prefixes: [haproxy.router.openshift.io/, route.openshift.io/]
+load_balancer: true
+storage:
+  classes: []
+  default_class: ""
+  rwx_classes: []
+  mapping: {}
+api_groups:
+  - metrics.k8s.io
+  - route.openshift.io
+  - image.openshift.io
+  - template.openshift.io
+  - apps.openshift.io
+  - security.openshift.io
+  - build.openshift.io
+  - project.openshift.io
+  - quota.openshift.io
+  - user.openshift.io
+  - oauth.openshift.io
+  - config.openshift.io
+  - operator.openshift.io
+  - console.openshift.io
+  - network.openshift.io
+  - machine.openshift.io
+  - autoscaling.openshift.io
+  - monitoring.coreos.com
+  - operators.coreos.com
+  - packages.operators.coreos.com
+  - snapshot.storage.k8s.io
+quotas_enforced: false
+network_policy_default_deny: false

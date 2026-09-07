@@ -1,0 +1,70 @@
+name: kubeport
+description: Check Kubernetes manifests, Helm charts and Kustomize overlays for portability to k3s, upstream Kubernetes or OpenShift.
+branding:
+  icon: shuffle
+  color: blue
+inputs:
+  path:
+    description: Directory, file, chart or kustomization to check
+    required: true
+    default: .
+  to:
+    description: Target(s), comma-separated (e.g. openshift:4.19/vsphere,k8s:1.32/eks)
+    required: true
+  from:
+    description: Where the manifests run today (context only), e.g. k3s:1.31
+    required: false
+    default: ""
+  profile:
+    description: Path to a cluster profile YAML; when set it is used as the target instead of `to`
+    required: false
+    default: ""
+  fail-on:
+    description: Fail the step on findings at this severity or higher (error, warn, info, none)
+    required: false
+    default: error
+  values:
+    description: Helm values file(s), comma-separated
+    required: false
+    default: ""
+  version:
+    description: kubeport version to install (a tag like v0.1.0, or latest)
+    required: false
+    default: latest
+  sarif:
+    description: Also write a SARIF file to this path (upload it with github/codeql-action/upload-sarif)
+    required: false
+    default: kubeport.sarif
+outputs:
+  sarif:
+    description: Path of the SARIF file written
+    value: ${{ steps.run.outputs.sarif }}
+runs:
+  using: composite
+  steps:
+    - name: install kubeport
+      shell: bash
+      run: |
+        set -euo pipefail
+        v="${{ inputs.version }}"
+        if [ "$v" = "latest" ]; then
+          v=$(curl -fsSL https://api.github.com/repos/kubeport/kubeport/releases/latest | sed -n 's/.*"tag_name": *"\(v[^"]*\)".*/\1/p')
+        fi
+        os=$(uname -s | tr '[:upper:]' '[:lower:]'); arch=$(uname -m); case "$arch" in x86_64) arch=amd64;; aarch64|arm64) arch=arm64;; esac
+        curl -fsSL "https://github.com/kubeport/kubeport/releases/download/${v}/kubeport_${v#v}_${os}_${arch}.tar.gz" | tar -xz -C /tmp kubeport
+        sudo install -m 0755 /tmp/kubeport /usr/local/bin/kubeport
+        kubeport version
+    - name: run kubeport
+      id: run
+      shell: bash
+      run: |
+        set -uo pipefail
+        target="${{ inputs.to }}"
+        [ -n "${{ inputs.profile }}" ] && target="${{ inputs.profile }}"
+        args=(--to "$target" --fail-on "${{ inputs.fail-on }}")
+        [ -n "${{ inputs.from }}" ] && args+=(--from "${{ inputs.from }}")
+        IFS=, read -ra vals <<< "${{ inputs.values }}"
+        for f in "${vals[@]}"; do [ -n "$f" ] && args+=(-f "$f"); done
+        kubeport check "${args[@]}" --format sarif --fail-on none "${{ inputs.path }}" > "${{ inputs.sarif }}"
+        echo "sarif=${{ inputs.sarif }}" >> "$GITHUB_OUTPUT"
+        kubeport check "${args[@]}" "${{ inputs.path }}"

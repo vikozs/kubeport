@@ -1,0 +1,6 @@
+profile: hardened
+display: CIS hardened, PSA restricted
+psa_level: restricted
+hostpath_allowed: false
+privileged_allowed: false
+network_policy_default_deny: true

@@ -1,0 +1,19 @@
+TARGET           K8S      DESCRIPTION                                                            PROFILES
+k3s:1.30         1.30     k3s 1.30                                                               hardened, rpi
+k3s:1.31         1.31     k3s 1.31                                                               hardened, rpi
+k3s:1.32         1.32     k3s 1.32                                                               hardened, rpi
+k3s:1.33         1.33     k3s 1.33                                                               hardened, rpi
+k3s:1.34         1.34     k3s 1.34                                                               hardened, rpi
+k8s:1.29         1.29     Kubernetes 1.29                                                        aks, eks, gke, talos
+k8s:1.30         1.30     Kubernetes 1.30                                                        aks, eks, gke, talos
+k8s:1.31         1.31     Kubernetes 1.31                                                        aks, eks, gke, talos
+k8s:1.32         1.32     Kubernetes 1.32                                                        aks, eks, gke, talos
+k8s:1.33         1.33     Kubernetes 1.33                                                        aks, eks, gke, talos
+k8s:1.34         1.34     Kubernetes 1.34                                                        aks, eks, gke, talos
+openshift:4.16   1.29     OpenShift 4.16                                                         aro, odf, regulated, rosa, vsphere
+openshift:4.17   1.30     OpenShift 4.17                                                         aro, odf, regulated, rosa, vsphere
+openshift:4.18   1.31     OpenShift 4.18                                                         aro, odf, regulated, rosa, vsphere
+openshift:4.19   1.32     OpenShift 4.19                                                         aro, odf, regulated, rosa, vsphere
+openshift:4.20   1.33     OpenShift 4.20                                                         aro, odf, regulated, rosa, vsphere
+
+Use <target>/<profile>, e.g. openshift:4.19/vsphere, or --to ./my-cluster.yaml (see `kubeport profile init`).

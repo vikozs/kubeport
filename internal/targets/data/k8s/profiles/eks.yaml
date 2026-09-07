@@ -1,0 +1,17 @@
+profile: eks
+display: Amazon EKS
+ingress:
+  default_class: alb
+  controller: aws-load-balancer-controller
+  annotation_prefixes: [alb.ingress.kubernetes.io/, service.beta.kubernetes.io/aws-]
+load_balancer: true
+storage:
+  classes: [gp2, gp3, efs-sc]
+  default_class: gp2
+  rwx_classes: [efs-sc]
+  mapping:
+    local-path: gp3
+    standard: gp3
+    thin-csi: gp3
+    managed-csi: gp3
+api_groups: [metrics.k8s.io, elbv2.k8s.aws, eks.amazonaws.com]

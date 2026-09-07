@@ -1,0 +1,13 @@
+profile: vsphere
+display: vSphere, thin-csi
+storage:
+  classes: [thin-csi]
+  default_class: thin-csi
+  rwx_classes: []
+  mapping:
+    local-path: thin-csi
+    gp2: thin-csi
+    gp3: thin-csi
+    standard: thin-csi
+    standard-rwo: thin-csi
+    managed-csi: thin-csi

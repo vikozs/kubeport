@@ -1,0 +1,5 @@
+profile: talos
+display: Talos Linux, PSA restricted
+psa_level: restricted
+hostpath_allowed: false
+privileged_allowed: false

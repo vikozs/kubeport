@@ -1,0 +1,30 @@
+  api/crd-missing                      Custom resource whose API group is not known on the target
+  api/deprecated                       API version deprecated on the target's Kubernetes release
+F api/removed                          API version removed on the target's Kubernetes release
+  img/imagestream-on-non-openshift     ImageStream reference outside OpenShift
+  img/latest-tag                       Image uses :latest or no tag
+  k3s/traefik-crd                      Traefik custom resource outside k3s
+F net/foreign-ingress-annotations      Ingress annotations for a controller the target does not run
+  net/ingress-class-missing            Ingress without ingressClassName on a target with no default class
+F net/ingress-on-openshift             Ingress that the OpenShift Router cannot honour
+  net/network-policy-default           No NetworkPolicy on a default-deny target
+F net/route-on-non-openshift           OpenShift Route on a target without the Route API
+  net/servicelb-assumption             Service type LoadBalancer on a target with no LoadBalancer implementation
+F ocp/deploymentconfig                 DeploymentConfig
+  ocp/service-ca                       OpenShift service-ca annotation
+F ocp/template-object                  OpenShift Template outside OpenShift
+  res/limits-missing                   Container without resource requests or limits
+F sec/allow-privilege-escalation       allowPrivilegeEscalation not set to false
+F sec/capabilities                     Capabilities not dropped or dangerous capabilities added
+F sec/fixed-uid                        Hard-coded runAsUser on an arbitrary-UID target
+  sec/host-namespaces                  Host network, PID or IPC namespace
+  sec/hostpath                         hostPath volume
+  sec/privileged                       Privileged container
+  sec/psp-usage                        PodSecurityPolicy object
+F sec/run-as-root                      Container may run as root
+  sec/scc-annotation                   OpenShift SCC reference on a non-OpenShift target
+F sec/seccomp-profile                  No seccomp profile
+  stor/rwx-unsupported                 ReadWriteMany on a class that cannot provide it
+F stor/storageclass-missing            StorageClass not available on the target
+
+F = autofix available

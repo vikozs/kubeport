@@ -1,0 +1,51 @@
+# Written to run anywhere.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portable
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: portable
+  template:
+    metadata:
+      labels:
+        app: portable
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: app
+          image: ghcr.io/acme/portable:1.4.2
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: portable
+spec:
+  selector:
+    app: portable
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app: portable
+  ingress:
+    - {}

@@ -1,0 +1,231 @@
+# Rule catalogue. The condition for each rule lives in internal/rules; this
+# file holds everything a human reads: title, why it matters, where to read
+# more, and what the autofix does. Rule ids are stable and never repurposed.
+rules:
+
+  # ---------------------------------------------------------------- security
+  - id: sec/run-as-root
+    category: sec
+    title: Container may run as root
+    summary: No runAsNonRoot and no non-zero runAsUser; the image's default user decides.
+    detail: |
+      OpenShift's restricted-v2 SCC and Pod Security Admission at the restricted
+      level both reject pods that can run as UID 0. On k3s and upstream clusters
+      with PSA at privileged (the default) the pod starts, which is exactly how
+      root-dependent images slip into production unnoticed.
+    docs: https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/authentication_and_authorization/managing-pod-security-policies
+    fix: Sets securityContext.runAsNonRoot=true at the pod level. The image must actually support a non-root user.
+
+  - id: sec/fixed-uid
+    category: sec
+    title: Hard-coded runAsUser on an arbitrary-UID target
+    summary: runAsUser is set to a specific non-zero UID, which OpenShift's restricted-v2 SCC rejects unless it falls in the project's UID range.
+    detail: |
+      OpenShift assigns each project a UID range and restricted-v2 forces pods
+      into it (MustRunAsRange). A chart that pins runAsUser: 1000 fails with
+      "unable to validate against any security context constraint". The portable
+      pattern is runAsNonRoot: true with no runAsUser, and an image whose
+      filesystem is group-writable (GID 0) so the arbitrary UID can write.
+    docs: https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/images/creating-images#use-uid_create-images
+    fix: Removes runAsUser (and runAsGroup, fsGroup when set) from pod and container securityContexts and sets runAsNonRoot=true.
+
+  - id: sec/capabilities
+    category: sec
+    title: Capabilities not dropped or dangerous capabilities added
+    summary: Missing capabilities.drop [ALL], or adding NET_RAW, SYS_ADMIN, SYS_PTRACE or similar.
+    detail: |
+      restricted-v2 and PSA restricted require drop: [ALL] and allow only
+      NET_BIND_SERVICE to be added back. Anything else is rejected.
+    docs: https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted
+    fix: Adds capabilities.drop [ALL] to every container; added capabilities are reported but not removed.
+
+  - id: sec/allow-privilege-escalation
+    category: sec
+    title: allowPrivilegeEscalation not set to false
+    summary: restricted-v2 and PSA restricted require allowPrivilegeEscalation=false on every container.
+    docs: https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted
+    fix: Sets allowPrivilegeEscalation=false on every container.
+
+  - id: sec/privileged
+    category: sec
+    title: Privileged container
+    summary: securityContext.privileged=true is blocked unless a privileged SCC or PSA privileged namespace is granted.
+    docs: https://kubernetes.io/docs/concepts/security/pod-security-standards/#baseline
+    fix: ""
+
+  - id: sec/host-namespaces
+    category: sec
+    title: Host network, PID or IPC namespace
+    summary: hostNetwork, hostPID or hostIPC require a privileged SCC or PSA privileged namespace.
+    docs: https://kubernetes.io/docs/concepts/security/pod-security-standards/#baseline
+    fix: ""
+
+  - id: sec/hostpath
+    category: sec
+    title: hostPath volume
+    summary: hostPath volumes are refused by restricted-v2 and by PSA baseline/restricted.
+    docs: https://kubernetes.io/docs/concepts/storage/volumes/#hostpath
+    fix: ""
+
+  - id: sec/seccomp-profile
+    category: sec
+    title: No seccomp profile
+    summary: PSA restricted requires seccompProfile.type RuntimeDefault or Localhost; OpenShift sets it for you via restricted-v2 but upstream does not.
+    docs: https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted
+    fix: Sets pod-level securityContext.seccompProfile.type=RuntimeDefault.
+
+  - id: sec/psp-usage
+    category: sec
+    title: PodSecurityPolicy object
+    summary: PodSecurityPolicy was removed in Kubernetes 1.25; on OpenShift it was never the mechanism.
+    docs: https://kubernetes.io/docs/concepts/security/pod-security-policy/
+    fix: ""
+
+  - id: sec/scc-annotation
+    category: sec
+    title: OpenShift SCC reference on a non-OpenShift target
+    summary: openshift.io/scc annotations and security.openshift.io objects mean nothing outside OpenShift.
+    docs: https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/authentication_and_authorization/managing-pod-security-policies
+    fix: ""
+
+  # -------------------------------------------------------------- networking
+  - id: net/route-on-non-openshift
+    category: net
+    title: OpenShift Route on a target without the Route API
+    summary: route.openshift.io/v1 Route cannot be created on k3s or upstream Kubernetes.
+    detail: |
+      Routes predate Ingress and are OpenShift-only. Most Routes map cleanly to
+      an Ingress with one host, one path and edge TLS. Passthrough maps to an
+      Ingress with ssl-passthrough where the controller supports it; re-encrypt
+      needs controller-specific annotations and is left for you to review.
+    docs: https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/networking/configuring-routes
+    fix: Rewrites the Route into a networking.k8s.io/v1 Ingress (host, path, backend service and port, edge TLS secret when tls.certificate is not inline).
+
+  - id: net/ingress-on-openshift
+    category: net
+    title: Ingress that the OpenShift Router cannot honour
+    summary: The Ingress carries annotations for another controller (Traefik, nginx, ALB) that the OpenShift Router ignores.
+    detail: |
+      OpenShift does serve plain Ingress objects (it creates a Route behind the
+      scenes), but controller-specific annotations are silently dropped. Rewrite
+      rules, middlewares and rate limits vanish without an error.
+    docs: https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/networking/configuring-routes#nw-ingress-creating-a-route-via-an-ingress_route-configuration
+    fix: Rewrites a simple Ingress (one host, one path, one backend) into a Route with edge TLS; unsupported annotations are kept in the Route as a comment-style annotation for review.
+
+  - id: net/foreign-ingress-annotations
+    category: net
+    title: Ingress annotations for a controller the target does not run
+    summary: Annotations for a controller that is not installed on the target will be ignored.
+    docs: https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/
+    fix: Sets spec.ingressClassName to the target's default class when it has one; the foreign annotations are left in place and listed for review.
+
+  - id: net/ingress-class-missing
+    category: net
+    title: Ingress without ingressClassName on a target with no default class
+    summary: Upstream Kubernetes ships no Ingress controller; an Ingress with no class is never reconciled.
+    docs: https://kubernetes.io/docs/concepts/services-networking/ingress/#default-ingress-class
+    fix: ""
+
+  - id: net/servicelb-assumption
+    category: net
+    title: Service type LoadBalancer on a target with no LoadBalancer implementation
+    summary: On k3s ServiceLB hands out node IPs; upstream kubeadm clusters leave the Service pending forever.
+    docs: https://kubernetes.io/docs/concepts/services-networking/service/#loadbalancer
+    fix: ""
+
+  - id: net/network-policy-default
+    category: net
+    title: No NetworkPolicy on a default-deny target
+    summary: The target isolates namespaces by default and this bundle defines no NetworkPolicy that admits ingress traffic.
+    docs: https://kubernetes.io/docs/concepts/services-networking/network-policies/
+    fix: ""
+
+  # ----------------------------------------------------------------- storage
+  - id: stor/storageclass-missing
+    category: stor
+    title: StorageClass not available on the target
+    summary: The PVC references a StorageClass the target does not have (or that belongs to another distribution).
+    docs: https://kubernetes.io/docs/concepts/storage/storage-classes/
+    fix: Replaces the class using the target's storage.mapping table, or the target default class when no mapping exists.
+
+  - id: stor/rwx-unsupported
+    category: stor
+    title: ReadWriteMany on a class that cannot provide it
+    summary: local-path (k3s), EBS, vSphere thin-csi and Azure Disk are single-node block volumes; RWX needs a file or distributed class.
+    docs: https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
+    fix: ""
+
+  # ------------------------------------------------------------------ images
+  - id: img/imagestream-on-non-openshift
+    category: img
+    title: ImageStream reference outside OpenShift
+    summary: image.openshift.io objects and image-registry.openshift-image-registry.svc references only resolve inside OpenShift.
+    docs: https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/images/managing-image-streams
+    fix: ""
+
+  - id: img/latest-tag
+    category: img
+    title: Image uses :latest or no tag
+    summary: Not a portability blocker, but the same chart pulls different images on different clusters and days.
+    docs: https://kubernetes.io/docs/concepts/configuration/overview/#container-images
+    fix: ""
+
+  # --------------------------------------------------------------------- api
+  - id: api/removed
+    category: api
+    title: API version removed on the target's Kubernetes release
+    summary: The object uses an apiVersion that no longer exists on the target.
+    docs: https://kubernetes.io/docs/reference/using-api/deprecation-guide/
+    fix: Rewrites apiVersion to the replacement when the schema is compatible (Ingress v1beta1 to v1, CronJob, HPA v2, PDB v1, RBAC v1).
+
+  - id: api/deprecated
+    category: api
+    title: API version deprecated on the target's Kubernetes release
+    summary: The apiVersion still works but will be removed; fix before the next upgrade.
+    docs: https://kubernetes.io/docs/reference/using-api/deprecation-guide/
+    fix: ""
+
+  - id: api/crd-missing
+    category: api
+    title: Custom resource whose API group is not known on the target
+    summary: The object belongs to a CRD or aggregated API that the target does not list. Install the operator first or drop the object.
+    docs: https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/
+    fix: ""
+
+  # --------------------------------------------------------------- openshift
+  - id: ocp/template-object
+    category: ocp
+    title: OpenShift Template outside OpenShift
+    summary: template.openshift.io Templates are processed by `oc process`; nothing on k3s or upstream understands them.
+    docs: https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/images/using-templates
+    fix: Expands the Template into its objects, substituting parameter defaults and emitting a values file for the rest.
+
+  - id: ocp/deploymentconfig
+    category: ocp
+    title: DeploymentConfig
+    summary: apps.openshift.io/v1 DeploymentConfig is OpenShift-only and deprecated since 4.14; use apps/v1 Deployment.
+    docs: https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/building_applications/deployments#deployments-comparing-deploymentconfigs
+    fix: Converts a DeploymentConfig to an apps/v1 Deployment (replicas, selector, template, strategy Rolling to RollingUpdate). Triggers and lifecycle hooks are dropped and listed.
+
+  - id: ocp/service-ca
+    category: ocp
+    title: OpenShift service-ca annotation
+    summary: service.beta.openshift.io/serving-cert-secret-name is only honoured by OpenShift's service-ca operator; use cert-manager elsewhere.
+    docs: https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/security_and_compliance/configuring-certificates#add-service-serving
+    fix: ""
+
+  # --------------------------------------------------------------------- k3s
+  - id: k3s/traefik-crd
+    category: k3s
+    title: Traefik custom resource outside k3s
+    summary: IngressRoute, Middleware and friends need Traefik; k3s ships it, other targets usually do not.
+    docs: https://doc.traefik.io/traefik/routing/providers/kubernetes-crd/
+    fix: ""
+
+  # --------------------------------------------------------------- resources
+  - id: res/limits-missing
+    category: res
+    title: Container without resource requests or limits
+    summary: On a project with a LimitRange the defaults apply; with a ResourceQuota that requires them the pod is rejected outright.
+    docs: https://kubernetes.io/docs/concepts/policy/resource-quotas/#requests-vs-limits
+    fix: ""

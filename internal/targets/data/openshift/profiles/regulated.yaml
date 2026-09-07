@@ -1,0 +1,5 @@
+profile: regulated
+display: regulated tenant, quotas and default-deny
+notes: For projects where ResourceQuota/LimitRange exist and the project network is isolated by default.
+quotas_enforced: true
+network_policy_default_deny: true

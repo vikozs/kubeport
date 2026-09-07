@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kubeport · portability linter for k3s, Kubernetes and OpenShift</title>
+<meta name="description" content="kubeport checks Kubernetes manifests and Helm charts against a target distribution (k3s, upstream Kubernetes, OpenShift or your own cluster profile), reports what breaks, and rewrites what it safely can.">
+<meta property="og:title" content="kubeport">
+<meta property="og:description" content="Your chart works on k3s. Here is why it dies on OpenShift.">
+<meta property="og:url" content="https://kubeport.kosir.info">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230F1B33'/%3E%3Cpath d='M8 22V10h3.2l4.8 5.4V10H19v12h-3.2L11 16.6V22z' fill='%23DCE3EE'/%3E%3Ccircle cx='23.5' cy='20.5' r='2.5' fill='%233BA776'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F8; --panel:#FFFFFF; --ink:#16213A; --muted:#5B6478; --line:#D5DBE5;
+  --term:#0F1B33; --term-ink:#DCE3EE; --term-dim:#8A97B0;
+  --err:#E5646A; --warn:#E3B341; --info:#7FB3E6; --ok:#4CC38A; --fix:#4CC38A;
+  --accent:#2456C9; --accent-ink:#FFFFFF;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --maxw:1080px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:3px}
+a:hover{text-decoration-thickness:2px}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:3px}
+code,pre,kbd{font-family:var(--mono)}
+code{font-size:.92em;background:#E8ECF3;padding:.1em .38em;border-radius:4px}
+h1,h2,h3{font-family:var(--mono);font-weight:500;letter-spacing:-.01em;line-height:1.15;margin:0}
+h2{font-size:clamp(1.5rem,2.6vw,2rem);margin-bottom:.6rem}
+h3{font-size:1.05rem;font-weight:600;margin-bottom:.5rem}
+p{margin:.4rem 0 1rem}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 clamp(16px,4vw,40px)}
+
+/* header */
+header{padding:22px 0}
+header .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand{font-family:var(--mono);font-weight:600;font-size:1.1rem;color:var(--ink);text-decoration:none;display:flex;align-items:center;gap:10px}
+.brand i{width:26px;height:26px;border-radius:6px;background:var(--term);display:inline-grid;place-items:center;color:var(--term-ink);font-style:normal;font-size:.8rem;position:relative}
+.brand i::after{content:"";position:absolute;right:4px;bottom:4px;width:6px;height:6px;border-radius:50%;background:var(--ok)}
+nav a{margin-left:22px;color:var(--ink);text-decoration:none;font-size:.95rem}
+nav a:hover{text-decoration:underline}
+.ver{font-family:var(--mono);font-size:.8rem;color:var(--muted);margin-left:8px}
+
+/* hero */
+.hero{padding:34px 0 20px}
+.hero h1{font-size:clamp(1.8rem,4.2vw,3.1rem);max-width:30ch}
+.hero h1 em{font-style:normal;color:var(--muted)}
+.hero .lede{font-size:clamp(1.05rem,1.6vw,1.25rem);max-width:62ch;color:var(--muted);margin-top:18px}
+.hero .cta{display:flex;gap:12px;flex-wrap:wrap;margin:22px 0 8px;align-items:center}
+.btn{display:inline-block;padding:.65rem 1.05rem;border-radius:8px;font-weight:600;text-decoration:none;font-size:.98rem;border:1.5px solid transparent}
+.btn-primary{background:var(--accent);color:var(--accent-ink)}
+.btn-primary:hover{background:#1b46a6}
+.btn-ghost{border-color:var(--line);color:var(--ink);background:var(--panel)}
+.btn-ghost:hover{border-color:var(--ink)}
+.cta code{background:var(--panel);border:1px solid var(--line);padding:.55rem .8rem;border-radius:8px;font-size:.92rem}
+
+/* terminal with target tabs */
+.term{margin:28px 0 8px;border-radius:14px;background:var(--term);color:var(--term-ink);box-shadow:0 30px 60px -30px rgba(15,27,51,.45);overflow:hidden}
+.term-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 0;gap:12px}
+.term-cmd{font-family:var(--mono);font-size:.9rem;color:var(--term-dim);white-space:nowrap;overflow-x:auto;padding-bottom:10px;width:100%}
+.term-cmd b{color:var(--term-ink);font-weight:500}
+.term-cmd .cursor{display:inline-block;width:.6ch;height:1.05em;background:var(--term-ink);vertical-align:-.15em;margin-left:2px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.term-cmd .cursor{animation:none}}
+.tabs{display:flex;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03)}
+.tab{appearance:none;background:none;border:0;border-right:1px solid rgba(255,255,255,.08);color:var(--term-dim);text-align:left;padding:12px 14px;cursor:pointer;display:flex;flex-direction:column;gap:4px;font:inherit;min-width:0;flex:1 1 0}
+.tab:last-child{border-right:0}
+.tab-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.tab:hover{background:rgba(255,255,255,.04);color:var(--term-ink)}
+.tab.is-active{background:rgba(255,255,255,.07);color:var(--term-ink);box-shadow:inset 0 -3px 0 var(--info)}
+.tab-flag{font-family:var(--mono);font-size:.78rem;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tab-name{font-weight:600;font-size:.95rem;line-height:1.2;min-width:0}
+.tab-name small{display:block;font-weight:400;font-size:.78rem;opacity:.75;margin-top:2px}
+.tab-verdict{font-family:var(--mono);font-size:.82rem;padding:3px 8px;border-radius:999px;white-space:nowrap;flex:none}
+.v-blocked{background:rgba(229,100,106,.18);color:var(--err)}
+.v-review{background:rgba(227,179,65,.18);color:var(--warn)}
+.v-compatible{background:rgba(76,195,138,.18);color:var(--ok)}
+.term-legend{padding:8px 16px 0;font-family:var(--mono);font-size:.74rem;color:var(--term-dim)}
+.term-out{margin:0;padding:14px 16px 18px;font-size:.82rem;line-height:1.5;overflow-x:auto;tab-size:4;max-height:560px;overflow-y:auto}
+.term-out::-webkit-scrollbar{height:8px;width:8px}.term-out::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px}
+.t-head{color:var(--term-ink);font-weight:500}
+.t-err{color:var(--err);font-weight:600}.t-warn{color:var(--warn);font-weight:600}.t-info{color:var(--info);font-weight:600}
+.t-rule{color:var(--term-ink)}.t-obj{color:#C9D4E6}.t-path{color:var(--term-dim)}
+.t-msg{color:#AEB9CC}.t-fix{color:var(--fix)}.t-sum{color:var(--term-ink);font-weight:500}.t-ok{color:var(--ok)}
+.t-note{color:#C9B27A}
+.d-file{color:var(--term-ink);font-weight:500}.d-hunk{color:var(--info)}.d-add{color:var(--ok)}.d-del{color:var(--err)}
+.caption{font-size:.9rem;color:var(--muted);margin:10px 2px 0}
+
+section{padding:56px 0 8px}
+section+section{border-top:1px solid var(--line);margin-top:40px}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:40px;align-items:start}
+@media (max-width:820px){.two{grid-template-columns:1fr;gap:16px}}
+.sticky{position:sticky;top:24px}
+.lead{color:var(--muted);max-width:58ch}
+
+/* facts table */
+.facts{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:.95rem}
+.facts th,.facts td{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top;text-align:left}
+.facts thead th{font-family:var(--mono);font-weight:600;font-size:.85rem;background:#EEF2F7}
+.facts tbody th{font-weight:500;color:var(--muted);width:24%}
+.facts tr:last-child td,.facts tr:last-child th{border-bottom:0}
+.facts .no{color:#B4353B}.facts .yes{color:#217A52}
+.facts-wrap{overflow-x:auto}
+
+/* rules */
+.rules{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:22px 36px}
+.rule-group h3{font-size:.95rem;font-weight:600;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.rule-group ul{list-style:none;margin:0;padding:0}
+.rule-group li{display:grid;grid-template-columns:auto auto 1fr;align-items:baseline;gap:8px;padding:6px 0;font-size:.92rem;color:var(--muted)}
+.rule-group li code{font-size:.8rem;background:none;padding:0;color:var(--ink)}
+.rule-group li span:last-child{grid-column:1/-1}
+.fixmark{font-family:var(--mono);font-size:.68rem;color:#217A52;border:1px solid #9BD6B6;border-radius:4px;padding:0 4px;line-height:1.5}
+
+/* install */
+.install{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.install pre{margin:0;background:var(--term);color:var(--term-ink);border-radius:12px;padding:16px 18px;font-size:.84rem;overflow-x:auto;line-height:1.55;height:100%}
+.install .lbl{display:block;font-family:var(--mono);font-size:.78rem;color:var(--muted);margin-bottom:8px}
+.install .c{color:var(--term-dim)}
+pre.code{background:var(--term);color:var(--term-ink);border-radius:12px;padding:16px 18px;font-size:.84rem;overflow-x:auto;line-height:1.55;margin:0}
+pre.code .k{color:var(--info)}pre.code .s{color:#C9B27A}pre.code .c{color:var(--term-dim)}
+
+footer{margin-top:56px;padding:28px 0 44px;border-top:1px solid var(--line);color:var(--muted);font-size:.92rem}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+footer a{color:var(--muted)}
+@media (max-width:700px){
+  .tab{flex-basis:50%;border-bottom:1px solid rgba(255,255,255,.08)}
+  .tab:nth-child(2n){border-right:0}
+  .term-out{font-size:.76rem}
+  nav a{margin-left:14px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="/" aria-label="kubeport home"><i aria-hidden="true">kp</i>kubeport<span class="ver">v0.1.0</span></a>
+    <nav aria-label="Sections">
+      <a href="#targets">Targets</a><a href="#translate">Translate</a><a href="#rules">Rules</a><a href="#install">Install</a><a href="#ci">CI</a><a href="https://github.com/kubeport/kubeport">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+  <div class="hero">
+    <h1>Your chart works on k3s.<br><em>Here is why it dies on OpenShift.</em></h1>
+    <p class="lede">kubeport is a portability linter and translator for Kubernetes workloads. Point it at your manifests or Helm chart, say where they run today and where they need to run next, and it tells you exactly what will break there. Then it rewrites what it safely can.</p>
+    <div class="cta">
+      <a class="btn btn-primary" href="#install">Install</a>
+      <a class="btn btn-ghost" href="https://github.com/kubeport/kubeport">Source on GitHub</a>
+      <code>brew install kubeport/tap/kubeport</code>
+    </div>
+  </div>
+
+  <div class="term" id="demo">
+    <div class="term-bar">
+      <div class="term-cmd" aria-live="polite"><span class="prompt">$ </span><b id="cmd">kubeport check --from k3s:1.31 --to <span id="cmd-target">openshift:4.19/vsphere</span> ./deploy</b><span class="cursor" aria-hidden="true"></span></div>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Pick a target cluster">
+      <button class="tab" role="tab" id="tab-0" aria-controls="pane-0" aria-selected="false" data-target="k3s:1.31"><span class="tab-flag">--to k3s:1.31</span><span class="tab-row"><span class="tab-name">k3s 1.31<small>home</small></span><span class="tab-verdict v-blocked" aria-label="1 errors, 0 warnings">1·0·3</span></span></button>
+<button class="tab is-active" role="tab" id="tab-1" aria-controls="pane-1" aria-selected="true" data-target="openshift:4.19/vsphere"><span class="tab-flag">--to openshift:4.19/vsphere</span><span class="tab-row"><span class="tab-name">OpenShift 4.19<small>vSphere</small></span><span class="tab-verdict v-blocked" aria-label="8 errors, 3 warnings">8·3·1</span></span></button>
+<button class="tab" role="tab" id="tab-2" aria-controls="pane-2" aria-selected="false" data-target="k8s:1.32/eks"><span class="tab-flag">--to k8s:1.32/eks</span><span class="tab-row"><span class="tab-name">Kubernetes 1.32<small>Amazon EKS</small></span><span class="tab-verdict v-blocked" aria-label="4 errors, 2 warnings">4·2·3</span></span></button>
+<button class="tab" role="tab" id="tab-3" aria-controls="pane-3" aria-selected="false" data-target="k8s:1.34/talos"><span class="tab-flag">--to k8s:1.34/talos</span><span class="tab-row"><span class="tab-name">Kubernetes 1.34<small>Talos, PSA restricted</small></span><span class="tab-verdict v-blocked" aria-label="8 errors, 3 warnings">8·3·1</span></span></button>
+    </div>
+    <div class="term-legend">same six manifests · errors·warnings·info per target · every line below is real output of kubeport 0.1.0 on <a href="https://github.com/kubeport/kubeport/tree/main/fixtures/k3s-app" style="color:inherit">fixtures/k3s-app</a></div>
+    <pre class="term-out" id="pane-0" role="tabpanel" aria-labelledby="tab-0" hidden><span class="t-head">kubeport 0.1.0 · 6 objects · k3s:1.31 -&gt; k3s:1.31</span>
+<span class="t-err">ERROR</span>  <span class="t-rule">stor/rwx-unsupported            </span> <span class="t-obj">StatefulSet/uploads</span>  <span class="t-path">spec.volumeClaimTemplates[0].spec.accessModes</span>
+<span class="t-msg">       claim "shared" asks for ReadWriteMany on StorageClass "local-path", which only provides</span>
+<span class="t-msg">       single-node volumes</span>
+<span class="t-info">INFO </span>  <span class="t-rule">img/latest-tag                  </span> <span class="t-obj">Deployment/api</span>  <span class="t-path">spec.template.spec.containers[0].image</span>
+<span class="t-msg">       container "api" image "ghcr.io/acme/api:latest" has no pinned tag; different clusters will pull</span>
+<span class="t-msg">       different images</span>
+<span class="t-info">INFO </span>  <span class="t-rule">sec/capabilities                </span> <span class="t-obj">Deployment/api</span>  <span class="t-path">spec.template.spec.containers[0].securityContext.capabilities.drop</span>
+<span class="t-msg">       container "api" does not drop ALL capabilities</span>
+<span class="t-info">INFO </span>  <span class="t-rule">sec/hostpath                    </span> <span class="t-obj">Deployment/api</span>  <span class="t-path">spec.template.spec.volumes[1].hostPath</span>
+<span class="t-msg">       volume "docker" mounts host path /var/run/docker.sock; allowed by PSA privileged here, refused</span>
+<span class="t-msg">       by OpenShift restricted-v2 and PSA baseline/restricted</span>
+<span class="t-msg"></span>
+<span class="t-sum">4 finding(s) (1 error, 0 warn, 3 info) · 0 autofixable</span></pre>
+<pre class="term-out" id="pane-1" role="tabpanel" aria-labelledby="tab-1"><span class="t-head">kubeport 0.1.0 · 6 objects · k3s:1.31 -&gt; openshift:4.19/vsphere</span>
+<span class="t-err">ERROR</span>  <span class="t-rule">k3s/traefik-crd                 </span> <span class="t-obj">Middleware/strip</span>  <span class="t-path">apiVersion</span>
+<span class="t-msg">       Middleware is a Traefik custom resource; OpenShift 4.19 (vSphere, thin-csi) does not run</span>
+<span class="t-msg">       Traefik. Use an Ingress (or Route on OpenShift) or install Traefik on the target</span>
+<span class="t-err">ERROR</span>  <span class="t-rule">sec/allow-privilege-escalation  </span> <span class="t-obj">Deployment/api</span>  <span class="t-path">spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation</span>
+<span class="t-msg">       container "api" must set allowPrivilegeEscalation: false</span>
+<span class="t-fix">       fix available: kubeport translate --to openshift:4.19/vsphere --rule sec/allow-privilege-escalation</span>
+<span class="t-err">ERROR</span>  <span class="t-rule">sec/capabilities                </span> <span class="t-obj">Deployment/api</span>  <span class="t-path">spec.template.spec.containers[0].securityContext.capabilities.drop</span>
+<span class="t-msg">       container "api" does not drop ALL capabilities</span>
+<span class="t-fix">       fix available: kubeport translate --to openshift:4.19/vsphere --rule sec/capabilities</span>
+<span class="t-err">ERROR</span>  <span class="t-rule">sec/fixed-uid                   </span> <span class="t-obj">Deployment/api</span>  <span class="t-path">spec.template.spec.securityContext.runAsUser</span>
+<span class="t-msg">       pod pins runAsUser=1000; restricted-v2 assigns UIDs from the project range and rejects fixed</span>
+<span class="t-msg">       UIDs outside it</span>
+<span class="t-fix">       fix available: kubeport translate --to openshift:4.19/vsphere --rule sec/fixed-uid</span>
+<span class="t-err">ERROR</span>  <span class="t-rule">sec/hostpath                    </span> <span class="t-obj">Deployment/api</span>  <span class="t-path">spec.template.spec.volumes[1].hostPath</span>
+<span class="t-msg">       volume "docker" mounts host path /var/run/docker.sock; refused by SCC restricted-v2</span>
+<span class="t-err">ERROR</span>  <span class="t-rule">stor/rwx-unsupported            </span> <span class="t-obj">StatefulSet/uploads</span>  <span class="t-path">spec.volumeClaimTemplates[0].spec.accessModes</span>
+<span class="t-msg">       claim "shared" asks for ReadWriteMany on StorageClass "local-path", which only provides</span>
+<span class="t-msg">       single-node volumes</span>
+<span class="t-err">ERROR</span>  <span class="t-rule">stor/storageclass-missing       </span> <span class="t-obj">PersistentVolumeClaim/api-data</span>  <span class="t-path">spec.storageClassName</span>
+<span class="t-msg">       claim "api-data" uses StorageClass "local-path" which OpenShift 4.19 (vSphere, thin-csi) does</span>
+<span class="t-msg">       not have; suggested: thin-csi</span>
+<span class="t-fix">       fix available: kubeport translate --to openshift:4.19/vsphere --rule stor/storageclass-missing</span>
+<span class="t-err">ERROR</span>  <span class="t-rule">stor/storageclass-missing       </span> <span class="t-obj">StatefulSet/uploads</span>  <span class="t-path">spec.volumeClaimTemplates[0].spec.storageClassName</span>
+<span class="t-msg">       claim "shared" uses StorageClass "local-path" which OpenShift 4.19 (vSphere, thin-csi) does not</span>
+<span class="t-msg">       have; suggested: thin-csi</span>
+<span class="t-fix">       fix available: kubeport translate --to openshift:4.19/vsphere --rule stor/storageclass-missing</span>
+<span class="t-warn">WARN </span>  <span class="t-rule">net/ingress-on-openshift        </span> <span class="t-obj">Ingress/api</span>  <span class="t-path">metadata.annotations</span>
+<span class="t-msg">       2 annotation(s) for another Ingress controller are ignored by OpenShift 4.19 (vSphere,</span>
+<span class="t-msg">       thin-csi): traefik.ingress.kubernetes.io/router.middlewares,</span>
+<span class="t-msg">       traefik.ingress.kubernetes.io/router.entrypoints. The OpenShift Router serves the Ingress but</span>
+<span class="t-msg">       drops these; behaviour such as rewrites, middlewares or rate limits is lost</span>
+<span class="t-fix">       fix available: kubeport translate --to openshift:4.19/vsphere --rule net/ingress-on-openshift</span>
+<span class="t-warn">WARN </span>  <span class="t-rule">net/ingress-on-openshift        </span> <span class="t-obj">Ingress/api</span>  <span class="t-path">spec.ingressClassName</span>
+<span class="t-msg">       ingressClassName "traefik" targets a traefik controller; OpenShift 4.19 (vSphere, thin-csi)</span>
+<span class="t-msg">       default class is "openshift-default"</span>
+<span class="t-fix">       fix available: kubeport translate --to openshift:4.19/vsphere --rule net/ingress-on-openshift</span>
+<span class="t-warn">WARN </span>  <span class="t-rule">sec/fixed-uid                   </span> <span class="t-obj">Deployment/api</span>  <span class="t-path">spec.template.spec.securityContext.fsGroup</span>
+<span class="t-msg">       pod pins fsGroup=1000; restricted-v2 requires fsGroup in the project range</span>
+<span class="t-fix">       fix available: kubeport translate --to openshift:4.19/vsphere --rule sec/fixed-uid</span>
+<span class="t-info">INFO </span>  <span class="t-rule">img/latest-tag                  </span> <span class="t-obj">Deployment/api</span>  <span class="t-path">spec.template.spec.containers[0].image</span>
+<span class="t-msg">       container "api" image "ghcr.io/acme/api:latest" has no pinned tag; different clusters will pull</span>
+<span class="t-msg">       different images</span>
+<span class="t-msg"></span>
+<span class="t-sum">12 finding(s) (8 error, 3 warn, 1 info) · 8 autofixable</span></pre>
+<pre class="term-out" id="pane-2" role="tabpanel" aria-labelledby="tab-2" hidden><span class="t-head">kubeport 0.1.0 · 6 objects · k3s:1.31 -&gt; k8s:1.32/eks</span>
+<span class="t-err">ERROR</span>  <span class="t-rule">k3s/traefik-crd                 </span> <span class="t-obj">Middleware/strip</span>  <span class="t-path">apiVersion</span>
+<span class="t-msg">       Middleware is a Traefik custom resource; Kubernetes 1.32 (Amazon EKS) does not run Traefik. Use</span>
+<span class="t-msg">       an Ingress (or Route on OpenShift) or install Traefik on the target</span>
+<span class="t-err">ERROR</span>  <span class="t-rule">stor/rwx-unsupported            </span> <span class="t-obj">StatefulSet/uploads</span>  <span class="t-path">spec.volumeClaimTemplates[0].spec.accessModes</span>
+<span class="t-msg">       claim "shared" asks for ReadWriteMany on StorageClass "local-path", which only provides</span>
+<span class="t-msg">       single-node volumes; RWX-capable on this target: efs-sc</span>
+<span class="t-err">ERROR</span>  <span class="t-rule">stor/storageclass-missing       </span> <span class="t-obj">PersistentVolumeClaim/api-data</span>  <span class="t-path">spec.storageClassName</span>
+<span class="t-msg">       claim "api-data" uses StorageClass "local-path" which Kubernetes 1.32 (Amazon EKS) does not</span>
+<span class="t-msg">       have; suggested: gp3</span>
+<span class="t-fix">       fix available: kubeport translate --to k8s:1.32/eks --rule stor/storageclass-missing</span>
+<span class="t-err">ERROR</span>  <span class="t-rule">stor/storageclass-missing       </span> <span class="t-obj">StatefulSet/uploads</span>  <span class="t-path">spec.volumeClaimTemplates[0].spec.storageClassName</span>
+<span class="t-msg">       claim "shared" uses StorageClass "local-path" which Kubernetes 1.32 (Amazon EKS) does not have;</span>
+<span class="t-msg">       suggested: gp3</span>
+<span class="t-fix">       fix available: kubeport translate --to k8s:1.32/eks --rule stor/storageclass-missing</span>
+<span class="t-warn">WARN </span>  <span class="t-rule">net/foreign-ingress-annotations </span> <span class="t-obj">Ingress/api</span>  <span class="t-path">metadata.annotations</span>
+<span class="t-msg">       2 annotation(s) for another Ingress controller are ignored by Kubernetes 1.32 (Amazon EKS):</span>
+<span class="t-msg">       traefik.ingress.kubernetes.io/router.middlewares,</span>
+<span class="t-msg">       traefik.ingress.kubernetes.io/router.entrypoints</span>
+<span class="t-fix">       fix available: kubeport translate --to k8s:1.32/eks --rule net/foreign-ingress-annotations</span>
+<span class="t-warn">WARN </span>  <span class="t-rule">net/foreign-ingress-annotations </span> <span class="t-obj">Ingress/api</span>  <span class="t-path">spec.ingressClassName</span>
+<span class="t-msg">       ingressClassName "traefik" targets a traefik controller; Kubernetes 1.32 (Amazon EKS) default</span>
+<span class="t-msg">       class is "alb"</span>
+<span class="t-fix">       fix available: kubeport translate --to k8s:1.32/eks --rule net/foreign-ingress-annotations</span>
+<span class="t-info">INFO </span>  <span class="t-rule">img/latest-tag                  </span> <span class="t-obj">Deployment/api</span>  <span class="t-path">spec.template.spec.containers[0].image</span>
+<span class="t-msg">       container "api" image "ghcr.io/acme/api:latest" has no pinned tag; different clusters will pull</span>
+<span class="t-msg">       different images</span>
+<span class="t-info">INFO </span>  <span class="t-rule">sec/capabilities                </span> <span class="t-obj">Deployment/api</span>  <span class="t-path">spec.template.spec.containers[0].securityContext.capabilities.drop</span>
+<span class="t-msg">       container "api" does not drop ALL capabilities</span>
+<span class="t-info">INFO </span>  <span class="t-rule">sec/hostpath                    </span> <span class="t-obj">Deployment/api</span>  <span class="t-path">spec.template.spec.volumes[1].hostPath</span>
+<span class="t-msg">       volume "docker" mounts host path /var/run/docker.sock; allowed by PSA privileged here, refused</span>
+<span class="t-msg">       by OpenShift restricted-v2 and PSA baseline/restricted</span>
+<span class="t-msg"></span>
+<span class="t-sum">9 finding(s) (4 error, 2 warn, 3 info) · 4 autofixable</span></pre>
+<pre class="term-out" id="pane-3" role="tabpanel" aria-labelledby="tab-3" hidden><span class="t-head">kubeport 0.1.0 · 6 objects · k3s:1.31 -&gt; k8s:1.34/talos</span>
+<span class="t-err">ERROR</span>  <span class="t-rule">k3s/traefik-crd                 </span> <span class="t-obj">Middleware/strip</span>  <span class="t-path">apiVersion</span>
+<span class="t-msg">       Middleware is a Traefik custom resource; Kubernetes 1.34 (Talos Linux, PSA restricted) does not</span>
+<span class="t-msg">       run Traefik. Use an Ingress (or Route on OpenShift) or install Traefik on the target</span>
+<span class="t-err">ERROR</span>  <span class="t-rule">net/servicelb-assumption        </span> <span class="t-obj">Service/api</span>  <span class="t-path">spec.type</span>
+<span class="t-msg">       Service type LoadBalancer stays &lt;pending&gt; on Kubernetes 1.34 (Talos Linux, PSA restricted) (no</span>
+<span class="t-msg">       LoadBalancer implementation); on k3s ServiceLB (Klipper) made this work by binding node IPs. Use</span>
+<span class="t-msg">       NodePort, an Ingress, or install MetalLB</span>
+<span class="t-err">ERROR</span>  <span class="t-rule">sec/allow-privilege-escalation  </span> <span class="t-obj">Deployment/api</span>  <span class="t-path">spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation</span>
+<span class="t-msg">       container "api" must set allowPrivilegeEscalation: false</span>
+<span class="t-fix">       fix available: kubeport translate --to k8s:1.34/talos --rule sec/allow-privilege-escalation</span>
+<span class="t-err">ERROR</span>  <span class="t-rule">sec/capabilities                </span> <span class="t-obj">Deployment/api</span>  <span class="t-path">spec.template.spec.containers[0].securityContext.capabilities.drop</span>
+<span class="t-msg">       container "api" does not drop ALL capabilities</span>
+<span class="t-fix">       fix available: kubeport translate --to k8s:1.34/talos --rule sec/capabilities</span>
+<span class="t-err">ERROR</span>  <span class="t-rule">sec/hostpath                    </span> <span class="t-obj">Deployment/api</span>  <span class="t-path">spec.template.spec.volumes[1].hostPath</span>
+<span class="t-msg">       volume "docker" mounts host path /var/run/docker.sock; refused by PSA restricted</span>
+<span class="t-err">ERROR</span>  <span class="t-rule">sec/seccomp-profile             </span> <span class="t-obj">Deployment/api</span>  <span class="t-path">spec.template.spec.securityContext.seccompProfile</span>
+<span class="t-msg">       container "api" has no seccompProfile; PSA restricted requires RuntimeDefault or Localhost</span>
+<span class="t-fix">       fix available: kubeport translate --to k8s:1.34/talos --rule sec/seccomp-profile</span>
+<span class="t-err">ERROR</span>  <span class="t-rule">sec/seccomp-profile             </span> <span class="t-obj">StatefulSet/uploads</span>  <span class="t-path">spec.template.spec.securityContext.seccompProfile</span>
+<span class="t-msg">       container "uploads" has no seccompProfile; PSA restricted requires RuntimeDefault or Localhost</span>
+<span class="t-fix">       fix available: kubeport translate --to k8s:1.34/talos --rule sec/seccomp-profile</span>
+<span class="t-err">ERROR</span>  <span class="t-rule">stor/rwx-unsupported            </span> <span class="t-obj">StatefulSet/uploads</span>  <span class="t-path">spec.volumeClaimTemplates[0].spec.accessModes</span>
+<span class="t-msg">       claim "shared" asks for ReadWriteMany on StorageClass "local-path", which only provides</span>
+<span class="t-msg">       single-node volumes</span>
+<span class="t-warn">WARN </span>  <span class="t-rule">net/foreign-ingress-annotations </span> <span class="t-obj">Ingress/api</span>  <span class="t-path">metadata.annotations</span>
+<span class="t-msg">       2 annotation(s) for another Ingress controller are ignored by Kubernetes 1.34 (Talos Linux, PSA</span>
+<span class="t-msg">       restricted): traefik.ingress.kubernetes.io/router.middlewares,</span>
+<span class="t-msg">       traefik.ingress.kubernetes.io/router.entrypoints</span>
+<span class="t-warn">WARN </span>  <span class="t-rule">stor/storageclass-missing       </span> <span class="t-obj">PersistentVolumeClaim/api-data</span>  <span class="t-path">spec.storageClassName</span>
+<span class="t-msg">       claim "api-data" uses StorageClass "local-path", which is specific to k3s; Kubernetes 1.34</span>
+<span class="t-msg">       (Talos Linux, PSA restricted) ships something else (set storage.classes in a profile to get an</span>
+<span class="t-msg">       exact answer)</span>
+<span class="t-warn">WARN </span>  <span class="t-rule">stor/storageclass-missing       </span> <span class="t-obj">StatefulSet/uploads</span>  <span class="t-path">spec.volumeClaimTemplates[0].spec.storageClassName</span>
+<span class="t-msg">       claim "shared" uses StorageClass "local-path", which is specific to k3s; Kubernetes 1.34 (Talos</span>
+<span class="t-msg">       Linux, PSA restricted) ships something else (set storage.classes in a profile to get an exact</span>
+<span class="t-msg">       answer)</span>
+<span class="t-info">INFO </span>  <span class="t-rule">img/latest-tag                  </span> <span class="t-obj">Deployment/api</span>  <span class="t-path">spec.template.spec.containers[0].image</span>
+<span class="t-msg">       container "api" image "ghcr.io/acme/api:latest" has no pinned tag; different clusters will pull</span>
+<span class="t-msg">       different images</span>
+<span class="t-msg"></span>
+<span class="t-sum">12 finding(s) (8 error, 3 warn, 1 info) · 4 autofixable</span></pre>
+  </div>
+  <p class="caption">Severity is decided per target. A fixed <code>runAsUser</code> is fine on k3s, a warning nowhere, and fatal on OpenShift's <code>restricted-v2</code>. <code>local-path</code> exists only on k3s. A Traefik <code>Middleware</code> needs Traefik. kubeport knows which cluster has what.</p>
+</div>
+
+<section id="targets">
+  <div class="wrap">
+    <div class="two">
+      <div class="sticky">
+        <h2>The API is the same everywhere. The contract around it is not.</h2>
+        <p class="lead">Existing tools check API deprecations (kubent, Pluto), schemas (kubeconform) or best practices (kube-score, Polaris). None of them know that the three big distributions disagree on who picks the UID, what serves an Ingress, or whether <code>type: LoadBalancer</code> ever gets an address. These facts are data in kubeport, one YAML file per target version, plus <a href="#profile">a profile for your own cluster</a>.</p>
+      </div>
+      <div class="facts-wrap">
+      <table class="facts">
+        <thead><tr><th scope="col">fact</th><th scope="col">k3s (default install)</th><th scope="col">Kubernetes (kubeadm, kind)</th><th scope="col">OpenShift</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Pod security</th><td>PSA, nothing enforced</td><td>PSA, nothing enforced (Talos: restricted)</td><td>SCC <code>restricted-v2</code> on every project</td></tr>
+          <tr><th scope="row">Who picks the UID</th><td>the image</td><td>the image</td><td>the project: an arbitrary UID from a range; fixed <code>runAsUser</code> is <span class="no">rejected</span></td></tr>
+          <tr><th scope="row">hostPath, privileged, host namespaces</th><td class="yes">allowed</td><td class="yes">allowed</td><td class="no">refused without a custom SCC</td></tr>
+          <tr><th scope="row">Ingress controller</th><td>Traefik, class <code>traefik</code></td><td class="no">none</td><td>OpenShift Router (HAProxy), class <code>openshift-default</code>, plus <code>Route</code></td></tr>
+          <tr><th scope="row"><code>type: LoadBalancer</code></th><td>ServiceLB binds node IPs</td><td class="no">pending forever</td><td class="yes">works (platform LB)</td></tr>
+          <tr><th scope="row">Default StorageClass</th><td><code>local-path</code>, RWO only</td><td class="no">none</td><td>platform: <code>thin-csi</code>, <code>gp3-csi</code>, ODF</td></tr>
+          <tr><th scope="row">Extra APIs</th><td><code>traefik.io</code>, <code>helm.cattle.io</code></td><td>none</td><td><code>route</code>, <code>image</code>, <code>template</code>, <code>apps.openshift.io</code> and more</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="translate">
+  <div class="wrap">
+    <h2>check finds it. translate fixes what is deterministic.</h2>
+    <p class="lead">Rewrites are applied only when they preserve behaviour: Route to Ingress and back, StorageClass mapping, fixed UID removal, restricted-profile hardening, removed API versions, OpenShift Templates into plain objects, DeploymentConfig into Deployment. Everything else becomes a note for a human. Unchanged objects are written back byte for byte, comments included.</p>
+    <div class="term">
+      <div class="term-bar"><div class="term-cmd"><span class="prompt">$ </span><b>kubeport translate --to openshift:4.19/vsphere ./deploy</b></div></div>
+      <pre class="term-out" style="max-height:none"><span class="t-head">kubeport 0.1.0 · translate -&gt; openshift:4.19/vsphere</span>
+<span class="t-obj">Deployment/api                </span> <span class="t-rule">sec/allow-privilege-escalation</span> <span class="t-msg">set allowPrivilegeEscalation=false on api</span>
+<span class="t-obj">Deployment/api                </span> <span class="t-rule">sec/capabilities              </span> <span class="t-msg">added capabilities.drop [ALL] to api</span>
+<span class="t-obj">Deployment/api                </span> <span class="t-rule">sec/fixed-uid                 </span> <span class="t-msg">removed pod.runAsUser, pod.fsGroup; kept runAsNonRoot=true (OpenShift assigns the UID). Make sure the image's writable paths are group-writable by GID 0.</span>
+<span class="t-obj">PersistentVolumeClaim/api-data</span> <span class="t-rule">stor/storageclass-missing     </span> <span class="t-msg">spec: storageClassName local-path -&gt; thin-csi</span>
+<span class="t-obj">Ingress/api                   </span> <span class="t-rule">net/ingress-on-openshift      </span> <span class="t-msg">converted Ingress to route.openshift.io/v1 Route Route/api</span>
+<span class="t-obj">StatefulSet/uploads           </span> <span class="t-rule">stor/storageclass-missing     </span> <span class="t-msg">volumeClaimTemplates[0]: storageClassName local-path -&gt; thin-csi</span>
+
+<span class="t-head">  manual follow-up:</span>
+<span class="t-note">  - Ingress/api [net/ingress-on-openshift]: Route uses the router's default certificate; to keep the certificate from Secret "api-tls", paste it into spec.tls.certificate/key or use cert-manager's openshift-routes integration</span>
+<span class="t-note">  - Ingress/api [net/ingress-on-openshift]: dropped controller annotations with no Route equivalent: traefik.ingress.kubernetes.io/router.entrypoints, traefik.ingress.kubernetes.io/router.middlewares. Re-express rewrites/timeouts with haproxy.router.openshift.io/* annotations</span>
+
+<span class="d-file">--- a/deploy/deployment.yaml</span>
+<span class="d-file">+++ b/deploy/deployment.yaml</span>
+<span class="d-hunk">@@ -16,8 +16,7 @@</span>
+         app: api
+     spec:
+       securityContext:
+<span class="d-del">-        runAsUser: 1000</span>
+<span class="d-del">-        fsGroup: 1000</span>
+<span class="d-add">+        runAsNonRoot: true</span>
+       containers:
+         - name: api
+           image: ghcr.io/acme/api:latest
+<span class="d-hunk">@@ -28,6 +27,11 @@</span>
+               mountPath: /data
+             - name: docker
+               mountPath: /var/run/docker.sock
+<span class="d-add">+          securityContext:</span>
+<span class="d-add">+            allowPrivilegeEscalation: false</span>
+<span class="d-add">+            capabilities:</span>
+<span class="d-add">+              drop:</span>
+<span class="d-add">+                - ALL</span>
+       volumes:
+         - name: data
+           persistentVolumeClaim:
+<span class="d-file">--- a/deploy/service.yaml</span>
+<span class="d-file">+++ b/deploy/service.yaml</span>
+<span class="d-hunk">@@ -11,29 +11,20 @@</span>
+       port: 80
+       targetPort: 8080
+ ---
+<span class="d-del">-apiVersion: networking.k8s.io/v1</span>
+<span class="d-del">-kind: Ingress</span>
+<span class="d-add">+apiVersion: route.openshift.io/v1</span>
+<span class="d-add">+kind: Route</span>
+ metadata:
+   name: api
+<span class="d-del">-  annotations:</span>
+<span class="d-del">-    traefik.ingress.kubernetes.io/router.middlewares: default-strip@kubernetescrd</span>
+<span class="d-del">-    traefik.ingress.kubernetes.io/router.entrypoints: websecure</span>
+ spec:
+<span class="d-del">-  ingressClassName: traefik</span>
+<span class="d-add">+  host: api.example.com</span>
+<span class="d-add">+  to:</span>
+<span class="d-add">+    name: api</span>
+<span class="d-add">+    kind: Service</span>
+<span class="d-add">+  port:</span>
+<span class="d-add">+    targetPort: 80</span>
+   tls:
+<span class="d-del">-    - hosts: [api.example.com]</span>
+<span class="d-del">-      secretName: api-tls</span>
+<span class="d-del">-  rules:</span>
+<span class="d-del">-    - host: api.example.com</span>
+<span class="d-del">-      http:</span>
+<span class="d-del">-        paths:</span>
+<span class="d-del">-          - path: /</span>
+<span class="d-del">-            pathType: Prefix</span>
+<span class="d-del">-            backend:</span>
+<span class="d-del">-              service:</span>
+<span class="d-del">-                name: api</span>
+<span class="d-del">-                port:</span>
+<span class="d-del">-                  number: 80</span>
+<span class="d-add">+    termination: edge</span>
+<span class="d-add">+    insecureEdgeTerminationPolicy: Redirect</span>
+ ---
+ apiVersion: traefik.io/v1alpha1
+ kind: Middleware
+
+<span class="t-msg">  (dry run: add --write to apply)</span></pre>
+    </div>
+  </div>
+</section>
+
+<section id="rules">
+  <div class="wrap">
+    <h2>29 rules, each one about a difference between clusters.</h2>
+    <p class="lead">If a check would fire the same way on every target, it belongs in kube-score, not here. Each rule links to the upstream documentation and says which field to change. <code>kubeport explain sec/fixed-uid</code> gives the long version. Rules marked <span class="fixmark">fix</span> have a safe rewrite.</p>
+    <div class="rules">
+      <div class="rule-group"><h3>Security context and admission</h3><ul><li><code>sec/allow-privilege-escalation</code><span class="fixmark" title="autofix available">fix</span><span>allowPrivilegeEscalation not set to false</span></li><li><code>sec/capabilities</code><span class="fixmark" title="autofix available">fix</span><span>Capabilities not dropped or dangerous capabilities added</span></li><li><code>sec/fixed-uid</code><span class="fixmark" title="autofix available">fix</span><span>Hard-coded runAsUser on an arbitrary-UID target</span></li><li><code>sec/host-namespaces</code><span>Host network, PID or IPC namespace</span></li><li><code>sec/hostpath</code><span>hostPath volume</span></li><li><code>sec/privileged</code><span>Privileged container</span></li><li><code>sec/psp-usage</code><span>PodSecurityPolicy object</span></li><li><code>sec/run-as-root</code><span class="fixmark" title="autofix available">fix</span><span>Container may run as root</span></li><li><code>sec/scc-annotation</code><span>OpenShift SCC reference on a non-OpenShift target</span></li><li><code>sec/seccomp-profile</code><span class="fixmark" title="autofix available">fix</span><span>No seccomp profile</span></li></ul></div>
+<div class="rule-group"><h3>Networking</h3><ul><li><code>net/foreign-ingress-annotations</code><span class="fixmark" title="autofix available">fix</span><span>Ingress annotations for a controller the target does not run</span></li><li><code>net/ingress-class-missing</code><span>Ingress without ingressClassName on a target with no default class</span></li><li><code>net/ingress-on-openshift</code><span class="fixmark" title="autofix available">fix</span><span>Ingress that the OpenShift Router cannot honour</span></li><li><code>net/network-policy-default</code><span>No NetworkPolicy on a default-deny target</span></li><li><code>net/route-on-non-openshift</code><span class="fixmark" title="autofix available">fix</span><span>OpenShift Route on a target without the Route API</span></li><li><code>net/servicelb-assumption</code><span>Service type LoadBalancer on a target with no LoadBalancer implementation</span></li></ul></div>
+<div class="rule-group"><h3>Storage</h3><ul><li><code>stor/rwx-unsupported</code><span>ReadWriteMany on a class that cannot provide it</span></li><li><code>stor/storageclass-missing</code><span class="fixmark" title="autofix available">fix</span><span>StorageClass not available on the target</span></li></ul></div>
+<div class="rule-group"><h3>Images</h3><ul><li><code>img/imagestream-on-non-openshift</code><span>ImageStream reference outside OpenShift</span></li><li><code>img/latest-tag</code><span>Image uses :latest or no tag</span></li></ul></div>
+<div class="rule-group"><h3>API versions</h3><ul><li><code>api/crd-missing</code><span>Custom resource whose API group is not known on the target</span></li><li><code>api/deprecated</code><span>API version deprecated on the target's Kubernetes release</span></li><li><code>api/removed</code><span class="fixmark" title="autofix available">fix</span><span>API version removed on the target's Kubernetes release</span></li></ul></div>
+<div class="rule-group"><h3>OpenShift objects</h3><ul><li><code>ocp/deploymentconfig</code><span class="fixmark" title="autofix available">fix</span><span>DeploymentConfig</span></li><li><code>ocp/service-ca</code><span>OpenShift service-ca annotation</span></li><li><code>ocp/template-object</code><span class="fixmark" title="autofix available">fix</span><span>OpenShift Template outside OpenShift</span></li></ul></div>
+<div class="rule-group"><h3>k3s add-ons</h3><ul><li><code>k3s/traefik-crd</code><span>Traefik custom resource outside k3s</span></li></ul></div>
+<div class="rule-group"><h3>Resources</h3><ul><li><code>res/limits-missing</code><span>Container without resource requests or limits</span></li></ul></div>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap">
+    <h2>Install</h2>
+    <p class="lead">One static binary, no dependencies, no cluster access, no network calls. Helm charts and Kustomize overlays are rendered with the <code>helm</code>, <code>kustomize</code>, <code>kubectl</code> or <code>oc</code> already on your PATH.</p>
+    <div class="install">
+      <div><span class="lbl">macOS, Linux</span><pre>brew install kubeport/tap/kubeport
+kubeport check --to openshift:4.19 ./deploy</pre></div>
+      <div><span class="lbl">Go</span><pre>go install github.com/kubeport/kubeport/cmd/kubeport@latest</pre></div>
+      <div><span class="lbl">kubectl, oc plugin</span><pre>kubectl krew install port
+kubectl port check --to k3s:1.31 ./overlays/edge
+oc port check --to openshift:4.19 -f ./chart</pre></div>
+      <div><span class="lbl">Windows, PowerShell</span><pre>$v = (irm https://api.github.com/repos/kubeport/kubeport/releases/latest).tag_name
+curl.exe -LO "https://github.com/kubeport/kubeport/releases/download/$v/kubeport_$($v.TrimStart('v'))_windows_amd64.zip"
+Expand-Archive kubeport_*_windows_amd64.zip -DestinationPath $env:LOCALAPPDATA\kubeport
+<span class="c"># add $env:LOCALAPPDATA\kubeport to PATH</span></pre></div>
+      <div><span class="lbl">From a live namespace</span><pre>kubectl get deploy,sts,svc,ingress,pvc -n shop -o yaml |
+  kubeport check --from k8s:1.32/eks --to openshift:4.19 -</pre></div>
+      <div><span class="lbl">Helm chart with values</span><pre>kubeport check --to openshift:4.19/odf -f prod.yaml ./chart
+<span class="c"># or render yourself</span>
+helm template shop ./chart | kubeport check --to k3s:1.31 -</pre></div>
+    </div>
+    <p class="caption">Releases are built by GitHub Actions with goreleaser, ship an SBOM, and their checksums are signed with cosign. Verification is in every release's notes.</p>
+  </div>
+</section>
+
+<section id="ci">
+  <div class="wrap">
+    <div class="two">
+      <div>
+        <h2>In CI, before it reaches the cluster.</h2>
+        <p class="lead">Exit 1 on errors (configurable), SARIF for GitHub code scanning, a Markdown compatibility matrix for your README, and a shields.io badge endpoint. Also a pre-commit hook and a Tekton task.</p>
+        <h3 id="profile">Your cluster as a target</h3>
+        <p class="lead">Platform teams write a profile once: the StorageClasses, Ingress class, installed CRDs and admission level of the real cluster. Application teams point their pipelines at it. <code>kubeport profile init</code> writes the starter file; <a href="https://github.com/kubeport/kubeport/blob/main/docs/profiles.md">schema</a>.</p>
+      </div>
+      <div>
+<pre class="code"><span class="c"># .github/workflows/portability.yml</span>
+<span class="k">- uses:</span> kubeport/kubeport/action@v1
+  <span class="k">with:</span>
+    <span class="k">path:</span> ./chart
+    <span class="k">from:</span> k3s:1.31
+    <span class="k">to:</span> openshift:4.19/vsphere,k8s:1.32/eks
+    <span class="k">fail-on:</span> error
+<span class="k">- uses:</span> github/codeql-action/upload-sarif@v3
+  <span class="k">with:</span>
+    <span class="k">sarif_file:</span> kubeport.sarif</pre>
+<div style="height:14px"></div>
+<pre class="code"><span class="c"># prod-cluster.yaml</span>
+<span class="k">extends:</span> openshift:4.19
+<span class="k">profile:</span> prod
+<span class="k">storage:</span>
+  <span class="k">classes:</span> [thin-csi, ocs-storagecluster-cephfs]
+  <span class="k">default_class:</span> thin-csi
+  <span class="k">rwx_classes:</span> [ocs-storagecluster-cephfs]
+  <span class="k">mapping:</span> {local-path: thin-csi, gp3: thin-csi}
+<span class="k">api_groups:</span> [route.openshift.io, monitoring.coreos.com, cert-manager.io, external-secrets.io]
+<span class="k">quotas_enforced:</span> true
+<span class="k">network_policy_default_deny:</span> true
+
+<span class="c">$ kubeport check --to ./prod-cluster.yaml ./deploy</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>kubeport is open source under Apache-2.0, vendor-neutral, DCO sign-off, no CLA. Code of conduct: CNCF.</div>
+    <div><a href="https://github.com/kubeport/kubeport">GitHub</a> · <a href="https://github.com/kubeport/kubeport/blob/main/docs/founding-document.md">Founding document</a> · <a href="https://github.com/kubeport/kubeport/blob/main/CONTRIBUTING.md">Contributing</a> · <a href="https://kosir.info">kosir.info</a></div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var tabs=[].slice.call(document.querySelectorAll('.tab'));
+  var panes=[].slice.call(document.querySelectorAll('#demo .term-out'));
+  var cmdTarget=document.getElementById('cmd-target');
+  function activate(i){
+    tabs.forEach(function(t,j){var on=i===j;t.classList.toggle('is-active',on);t.setAttribute('aria-selected',on?'true':'false');});
+    panes.forEach(function(p,j){p.hidden=i!==j;});
+    cmdTarget.textContent=tabs[i].getAttribute('data-target');
+  }
+  tabs.forEach(function(t,i){
+    t.addEventListener('click',function(){activate(i);});
+    t.addEventListener('keydown',function(e){
+      var n=e.key==='ArrowRight'?i+1:e.key==='ArrowLeft'?i-1:null;
+      if(n===null)return;n=(n+tabs.length)%tabs.length;activate(n);tabs[n].focus();e.preventDefault();
+    });
+  });
+  // One page-load moment: the command types itself. Skipped under reduced motion.
+  var cmd=document.getElementById('cmd');
+  if(cmd && !window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    var full=cmd.innerHTML, text=cmd.textContent, i=0;
+    cmd.textContent='';
+    var t=setInterval(function(){
+      i+=2; cmd.textContent=text.slice(0,i);
+      if(i>=text.length){clearInterval(t);cmd.innerHTML=full;cmdTarget=document.getElementById('cmd-target');}
+    },14);
+  }
+})();
+</script>
+</body>
+</html>

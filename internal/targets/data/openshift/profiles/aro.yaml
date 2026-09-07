@@ -1,0 +1,12 @@
+profile: aro
+display: ARO on Azure
+storage:
+  classes: [managed-csi, managed-premium, azurefile-csi]
+  default_class: managed-csi
+  rwx_classes: [azurefile-csi]
+  mapping:
+    local-path: managed-csi
+    gp2: managed-csi
+    gp3: managed-csi
+    standard: managed-csi
+    thin-csi: managed-csi

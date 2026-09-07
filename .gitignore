@@ -1,0 +1,5 @@
+bin/
+dist/
+*.sarif
+kubeport-profile.yaml
+.DS_Store
